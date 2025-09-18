@@ -1,0 +1,5 @@
+[
+  {"id":1,"title":"Pothole on Main St","category":"road","priority":"medium","status":"open","reportedBy":"Alex Citizen","date":"2025-09-01","location":"Main St & 3rd Ave"},
+  {"id":2,"title":"Streetlight not working","category":"lighting","priority":"low","status":"in_progress","reportedBy":"Alex Citizen","date":"2025-09-08","location":"Pine Blvd 22"},
+  {"id":3,"title":"Overflowing trash bin","category":"sanitation","priority":"high","status":"resolved","reportedBy":"Jamie Doe","date":"2025-09-10","location":"Riverside Park"}
+]
