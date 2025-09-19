@@ -20,6 +20,25 @@ export default function DashboardPage() {
   const [tab, setTab] = useState<string>("all");
   const issues = issuesData;
 
+  // new: local progress updates map from localStorage
+  const [updatesMap, setUpdatesMap] = useState<Record<string, { message: string; ts: number; status: string }[]>>({});
+  useEffect(() => {
+    const read = () => {
+      try {
+        const raw = localStorage.getItem("issue_updates");
+        setUpdatesMap(raw ? JSON.parse(raw) : {});
+      } catch {
+        setUpdatesMap({});
+      }
+    };
+    read();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "issue_updates") read();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const filtered = useMemo(() => {
     if (tab === "all") return issues;
     if (tab === "mine") return issues.filter((i) => i.reportedBy === user?.name);
@@ -83,6 +102,35 @@ export default function DashboardPage() {
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span className="rounded-md bg-muted px-2 py-1 capitalize">{issue.category}</span>
                     <span className="rounded-md bg-muted px-2 py-1">Reporter: {issue.reportedBy}</span>
+                  </div>
+                  {/* Status Updates feed */}
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium">Status Updates</p>
+                    <div className="space-y-2">
+                      {(updatesMap[String(issue.id)] || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground">No updates yet.</p>
+                      )}
+                      {(updatesMap[String(issue.id)] || [])
+                        .slice()
+                        .reverse()
+                        .map((u, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="relative overflow-hidden rounded-md border bg-card/50 p-3"
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-primary" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs leading-snug">{u.message}</p>
+                                <p className="mt-1 text-[10px] text-muted-foreground">{new Date(u.ts).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                    </div>
                   </div>
                 </motion.div>
               ))}

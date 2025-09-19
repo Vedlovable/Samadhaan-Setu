@@ -1,14 +1,15 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Mic, Square, RotateCcw, Play } from "lucide-react";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -22,9 +23,67 @@ export default function ReportPage() {
   const [priority, setPriority] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  // Voice note state
+  const [recording, setRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        // stop tracks
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch (err) {
+      console.error("Mic permission or recording error", err);
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") {
+      mr.stop();
+      setRecording(false);
+    }
+  };
+
+  const resetRecording = () => {
+    setRecording(false);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+    setAudioBlob(null);
+    chunksRef.current = [];
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Placeholder: prepare form data including audio file if present
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("category", category);
+    formData.append("priority", priority);
+    formData.append("location", location);
+    formData.append("description", description);
+    if (audioBlob) {
+      const file = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: audioBlob.type || "audio/webm" });
+      formData.append("voice_note", file);
+    }
+    // TODO: POST to /api/report (Supabase integration later)
     router.push("/dashboard?submitted=1");
   };
 
@@ -91,6 +150,43 @@ export default function ReportPage() {
                     <img src="https://images.unsplash.com/photo-1501691223387-dd0500403074?q=80&w=600&auto=format&fit=crop" alt="placeholder" className="h-28 w-28 rounded object-cover" />
                     <p className="text-sm text-muted-foreground">Drag and drop or click to upload</p>
                     <Button type="button" variant="outline" size="sm">Upload</Button>
+                  </div>
+                </div>
+                {/* Voice Note */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Voice Note (optional)</Label>
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">{recording ? "Recording..." : audioUrl ? "Recorded audio ready" : "Record a short voice note to add more context"}</div>
+                      <div className="flex items-center gap-2">
+                        <AnimatePresence initial={false}>
+                          {!recording && !audioUrl && (
+                            <motion.button type="button" onClick={startRecording} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} whileTap={{ scale: 0.92 }} aria-label="Start recording">
+                              <Mic className="h-5 w-5" />
+                            </motion.button>
+                          )}
+                          {recording && (
+                            <motion.button type="button" onClick={stopRecording} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-sm" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} whileTap={{ scale: 0.92 }} aria-label="Stop recording">
+                              <Square className="h-5 w-5" />
+                            </motion.button>
+                          )}
+                          {!recording && audioUrl && (
+                            <div className="flex items-center gap-2">
+                              <a href={audioUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground" aria-label="Play">
+                                <Play className="h-5 w-5" />
+                              </a>
+                              <button type="button" onClick={resetRecording} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground" aria-label="Re-record">
+                                <RotateCcw className="h-5 w-5" />
+                              </button>
+                            </div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                    {/* Inline player */}
+                    {!recording && audioUrl && (
+                      <audio src={audioUrl} controls className="mt-3 w-full" />
+                    )}
                   </div>
                 </div>
               </div>

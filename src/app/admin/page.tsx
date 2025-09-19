@@ -10,6 +10,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -23,6 +25,9 @@ export default function AdminPage() {
   const [status, setStatus] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
   const [items, setItems] = useState(() => issuesData.map((i) => ({ ...i, assignee: "" as string })));
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [currentId, setCurrentId] = useState<number | null>(null);
+  const [progressMsg, setProgressMsg] = useState("");
 
   const stats = useMemo(() => ({
     total: items.length,
@@ -46,8 +51,33 @@ export default function AdminPage() {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, assignee: it.assignee || (user?.name || "Admin") } : it)));
   };
 
-  const handleUpdateStatus = (id: number) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: cycleStatus(it.status) } : it)));
+  const handleOpenUpdate = (id: number) => {
+    setCurrentId(id);
+    setProgressMsg("");
+    setUpdateOpen(true);
+  };
+
+  const readUpdates = (): Record<string, { message: string; ts: number; status: string }[]> => {
+    try {
+      const raw = localStorage.getItem("issue_updates");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
+  const writeUpdates = (data: Record<string, { message: string; ts: number; status: string }[]>) => {
+    localStorage.setItem("issue_updates", JSON.stringify(data));
+  };
+
+  const saveProgressUpdate = () => {
+    if (!currentId) return;
+    setItems((prev) => prev.map((it) => (it.id === currentId ? { ...it, status: cycleStatus(it.status) } : it)));
+    const updates = readUpdates();
+    const key = String(currentId);
+    const newEntry = { message: progressMsg || "Status updated", ts: Date.now(), status: (items.find((x) => x.id === currentId)?.status || "open") };
+    updates[key] = [...(updates[key] || []), newEntry];
+    writeUpdates(updates);
+    setUpdateOpen(false);
   };
 
   return (
@@ -132,7 +162,7 @@ export default function AdminPage() {
                     <TableCell>{new Date(i.date).toLocaleDateString()}</TableCell>
                     <TableCell className="space-x-2">
                       <Button variant="outline" size="sm" onClick={() => handleAssign(i.id)}>Assign</Button>
-                      <Button size="sm" onClick={() => handleUpdateStatus(i.id)}>Update</Button>
+                      <Button size="sm" onClick={() => handleOpenUpdate(i.id)}>Update</Button>
                     </TableCell>
                   </motion.tr>
                 ))}
@@ -141,6 +171,22 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={updateOpen} onOpenChange={setUpdateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Progress Update</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea value={progressMsg} onChange={(e) => setProgressMsg(e.target.value)} placeholder="Describe what changed, what was done, or next steps..." rows={4} />
+            <IssueUpdatesPreview id={currentId} readUpdates={readUpdates} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateOpen(false)}>Cancel</Button>
+            <Button onClick={saveProgressUpdate} disabled={!currentId}>Save update</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -157,5 +203,22 @@ function StatCard({ title, value, color }: { title: string; value: number; color
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+function IssueUpdatesPreview({ id, readUpdates }: { id: number | null; readUpdates: () => Record<string, { message: string; ts: number; status: string }[]> }) {
+  if (!id) return null;
+  const all = readUpdates();
+  const list = (all[String(id)] || []).slice().reverse();
+  if (!list.length) return <p className="text-xs text-muted-foreground">No previous updates yet.</p>;
+  return (
+    <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-3">
+      {list.map((u, idx) => (
+        <motion.div key={idx} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-md bg-muted/50 p-2">
+          <p className="text-xs leading-snug">{u.message}</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">{new Date(u.ts).toLocaleString()}</p>
+        </motion.div>
+      ))}
+    </div>
   );
 }
