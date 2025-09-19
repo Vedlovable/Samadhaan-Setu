@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import MapView from "@/components/map/MapView";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -28,6 +29,35 @@ export default function AdminPage() {
   const [updateOpen, setUpdateOpen] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [progressMsg, setProgressMsg] = useState("");
+  const [markers, setMarkers] = useState<{ id: number; position: [number, number]; title?: string; description?: string; status?: string; address?: string }[]>([]);
+
+  useEffect(() => {
+    const load = () => {
+      try {
+        const raw = localStorage.getItem("reports");
+        const reports = raw ? JSON.parse(raw) : [];
+        const m = reports
+          .filter((r: any) => typeof r.lat === "number" && typeof r.lng === "number")
+          .map((r: any) => ({
+            id: r.id,
+            position: [r.lat, r.lng] as [number, number],
+            title: r.title,
+            description: r.description,
+            status: r.status,
+            address: r.address,
+          }));
+        setMarkers(m);
+      } catch {
+        setMarkers([]);
+      }
+    };
+    load();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "reports") load();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const stats = useMemo(() => ({
     total: items.length,
@@ -88,6 +118,15 @@ export default function AdminPage() {
         <StatCard title="In Progress" value={stats.inProgress} color="bg-lime-50 text-lime-700" />
         <StatCard title="Resolved" value={stats.resolved} color="bg-green-50 text-green-700" />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Reported Issues Map</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MapView markers={markers} heightClassName="h-[400px] md:h-[600px]" />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

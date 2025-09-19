@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Mic, Square, RotateCcw, Play } from "lucide-react";
+import MapView from "@/components/map/MapView";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function ReportPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // Map pick state
+  const [picked, setPicked] = useState<{ lat: number; lng: number; address?: string } | null>(null);
 
   const startRecording = async () => {
     try {
@@ -79,10 +82,36 @@ export default function ReportPage() {
     formData.append("priority", priority);
     formData.append("location", location);
     formData.append("description", description);
+    if (picked) {
+      formData.append("lat", String(picked.lat));
+      formData.append("lng", String(picked.lng));
+      if (picked.address) formData.append("address", picked.address);
+    }
     if (audioBlob) {
       const file = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: audioBlob.type || "audio/webm" });
       formData.append("voice_note", file);
     }
+
+    // Persist to localStorage for admin map preview (no backend yet)
+    try {
+      const raw = localStorage.getItem("reports");
+      const reports = raw ? JSON.parse(raw) : [];
+      reports.push({
+        id: Date.now(),
+        title,
+        category,
+        priority,
+        description,
+        location,
+        status: "open",
+        lat: picked?.lat ?? null,
+        lng: picked?.lng ?? null,
+        address: picked?.address ?? null,
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem("reports", JSON.stringify(reports));
+    } catch {}
+
     // TODO: POST to /api/report (Supabase integration later)
     router.push("/dashboard?submitted=1");
   };
@@ -98,6 +127,22 @@ export default function ReportPage() {
           <CardContent>
             <form onSubmit={submit} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label>Pick location on map</Label>
+                  <div className="mt-2">
+                    <MapView
+                      allowDropPin
+                      enableReverseGeocode
+                      onPick={(d) => setPicked(d)}
+                      heightClassName="h-[400px] md:h-[600px]"
+                    />
+                  </div>
+                  {picked && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Selected: {picked.lat.toFixed(6)}, {picked.lng.toFixed(6)}{picked.address ? ` • ${picked.address}` : ""}
+                    </p>
+                  )}
+                </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="title">Title</Label>
                   <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g., Pothole on Main St" />
