@@ -33,6 +33,10 @@ export default function AdminPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [currentType, setCurrentType] = useState<"issue" | "report">("issue");
   const [currentReportId, setCurrentReportId] = useState<number | null>(null);
+  // details dialog for citizen reports
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [viewReport, setViewReport] = useState<any | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const load = () => {
@@ -101,6 +105,12 @@ export default function AdminPage() {
     setCurrentId(null);
     setProgressMsg("");
     setUpdateOpen(true);
+  };
+
+  const handleViewReport = (id: number) => {
+    const rep = reports.find((r) => r.id === id) || null;
+    setViewReport(rep);
+    setDetailsOpen(true);
   };
 
   const readUpdates = (): Record<string, { message: string; ts: number; status: string }[]> => {
@@ -212,6 +222,7 @@ export default function AdminPage() {
                       <TableCell>{new Date(r.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell className="space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleOpenUpdateReport(r.id)}>Update</Button>
+                        <Button size="sm" onClick={() => handleViewReport(r.id)}>View</Button>
                       </TableCell>
                     </motion.tr>
                   ))}
@@ -331,6 +342,68 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setUpdateOpen(false)}>Cancel</Button>
             <Button onClick={saveProgressUpdate} disabled={currentType === "issue" ? !currentId : !currentReportId}>Save update</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog for Citizen Report */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="truncate">{viewReport?.title || "Report Details"}</span>
+              {viewReport?.status && <StatusBadge status={viewReport.status} />}
+            </DialogTitle>
+          </DialogHeader>
+          {viewReport && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                <div>Reporter: <span className="font-medium text-foreground">{viewReport.reportedBy || "Citizen"}</span></div>
+                <div>Date: {new Date(viewReport.createdAt).toLocaleString()}</div>
+                {typeof viewReport.lat === "number" && typeof viewReport.lng === "number" && (
+                  <div>Coords: {viewReport.lat.toFixed(6)}, {viewReport.lng.toFixed(6)}{viewReport.address ? ` • ${viewReport.address}` : ""}</div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm whitespace-pre-wrap">{viewReport.description}</p>
+              </div>
+              {Array.isArray(viewReport.images) && viewReport.images.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Photos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewReport.images.map((src: string, idx: number) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setLightboxSrc(src)}
+                        className="rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`Open image ${idx + 1}`}
+                      >
+                        <img src={src} alt={`report-${idx}`} className="h-20 w-20 rounded object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewReport.audio && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Voice Note</p>
+                  <audio src={viewReport.audio} controls className="w-full" />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox for images */}
+      <Dialog open={!!lightboxSrc} onOpenChange={(o) => { if (!o) setLightboxSrc(null); }}>
+        <DialogContent className="sm:max-w-3xl">
+          {lightboxSrc && (
+            <img src={lightboxSrc} alt="preview" className="max-h-[70vh] w-full rounded object-contain" />
+          )}
         </DialogContent>
       </Dialog>
     </div>

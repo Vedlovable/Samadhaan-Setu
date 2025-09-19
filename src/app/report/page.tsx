@@ -151,6 +151,9 @@ export default function ReportPage() {
         lng: picked?.lng ?? null,
         address: picked?.address ?? null,
         images,
+        // new fields for admin/user views
+        audio: audioUrl || null,
+        reportedBy: user?.name || "Citizen",
         createdAt: new Date().toISOString(),
       });
       localStorage.setItem("reports", JSON.stringify(reports));

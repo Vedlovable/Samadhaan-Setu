@@ -10,6 +10,7 @@ import issuesData from "@/data/issues.json";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -38,6 +39,28 @@ export default function DashboardPage() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  // new: user-submitted reports (from localStorage)
+  const [myReports, setMyReports] = useState<any[]>([]);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  useEffect(() => {
+    const load = () => {
+      try {
+        const raw = localStorage.getItem("reports");
+        const all = raw ? JSON.parse(raw) : [];
+        const list = user?.name ? all.filter((r: any) => r.reportedBy === user.name) : all;
+        setMyReports(list);
+      } catch {
+        setMyReports([]);
+      }
+    };
+    load();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "reports") load();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [user?.name]);
 
   const filtered = useMemo(() => {
     if (tab === "all") return issues;
@@ -139,6 +162,63 @@ export default function DashboardPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Your Submitted Reports (from localStorage) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Submitted Reports</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {myReports.length === 0 && (
+            <p className="text-sm text-muted-foreground">You haven't submitted any reports yet.</p>
+          )}
+          {myReports.map((r) => (
+            <motion.div key={r.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-lg border p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate font-medium">{r.title}</h3>
+                    <StatusBadge status={r.status} />
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.description}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-xs capitalize text-muted-foreground">{r.priority}</span>
+                </div>
+              </div>
+              <div className="mt-3">
+                {Array.isArray(r.images) && r.images.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {r.images.slice(0, 4).map((src: string, idx: number) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setLightboxSrc(src)}
+                        className="rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`Open image ${idx + 1}`}
+                      >
+                        <img src={src} alt={`thumb-${idx}`} className="h-14 w-14 rounded object-cover md:h-16 md:w-16" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No photo attached</p>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Lightbox for report images */}
+      <Dialog open={!!lightboxSrc} onOpenChange={(o) => { if (!o) setLightboxSrc(null); }}>
+        <DialogContent className="sm:max-w-3xl">
+          {lightboxSrc && (
+            <img src={lightboxSrc} alt="preview" className="max-h-[70vh] w-full rounded object-contain" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
