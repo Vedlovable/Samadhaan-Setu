@@ -26,6 +26,7 @@ export type MapMarker = {
   description?: string;
   status?: string;
   address?: string;
+  images?: string[]; // optional thumbnails to preview in popup
 };
 
 interface MapViewProps {
@@ -36,6 +37,7 @@ interface MapViewProps {
   enableReverseGeocode?: boolean;
   className?: string;
   heightClassName?: string; // e.g., "h-[400px] md:h-[600px]"
+  selectedPin?: [number, number]; // externally-controlled pin
 }
 
 function ClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
@@ -55,6 +57,7 @@ export const MapView: React.FC<MapViewProps> = ({
   enableReverseGeocode = false,
   className = "rounded-xl shadow-sm overflow-hidden border",
   heightClassName = "h-[400px] md:h-[600px]",
+  selectedPin,
 }) => {
   const [currentCenter, setCurrentCenter] = useState<[number, number]>(center || JAIPUR);
   const [picked, setPicked] = useState<[number, number] | null>(null);
@@ -101,9 +104,10 @@ export const MapView: React.FC<MapViewProps> = ({
   const hasMarkers = markers && markers.length > 0;
   const mapCenter: LatLngExpression = useMemo(() => {
     if (hasMarkers) return markers[0].position;
+    if (selectedPin) return selectedPin;
     if (picked) return picked;
     return currentCenter;
-  }, [hasMarkers, markers, picked, currentCenter]);
+  }, [hasMarkers, markers, picked, currentCenter, selectedPin]);
 
   return (
     <div className={className}>
@@ -120,12 +124,12 @@ export const MapView: React.FC<MapViewProps> = ({
 
         {allowDropPin && <ClickHandler onClick={handlePick} />}
 
-        {picked && (
-          <Marker position={picked}>
+        {(selectedPin || picked) && (
+          <Marker position={(selectedPin || picked)!}>
             <Popup>
               <div className="space-y-1">
                 <div className="font-medium">Selected Location</div>
-                <div className="text-xs text-muted-foreground">{picked[0].toFixed(6)}, {picked[1].toFixed(6)}</div>
+                <div className="text-xs text-muted-foreground">{(selectedPin || picked)![0].toFixed(6)}, {(selectedPin || picked)![1].toFixed(6)}</div>
                 {pickedAddress && <div className="text-xs">{pickedAddress}</div>}
               </div>
             </Popup>
@@ -135,7 +139,7 @@ export const MapView: React.FC<MapViewProps> = ({
         {markers.map((m) => (
           <Marker key={m.id} position={m.position}>
             <Popup>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {m.title && <div className="font-medium">{m.title}</div>}
                 {m.description && <div className="text-xs">{m.description}</div>}
                 <div className="text-xs text-muted-foreground">
@@ -145,6 +149,15 @@ export const MapView: React.FC<MapViewProps> = ({
                 {m.status && (
                   <div className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
                     {m.status}
+                  </div>
+                )}
+                {m.images && m.images.length > 0 && (
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    {m.images.slice(0, 6).map((src, idx) => (
+                      <a key={idx} href={src} target="_blank" rel="noreferrer">
+                        <img src={src} alt="report image" className="h-12 w-full rounded object-cover" />
+                      </a>
+                    ))}
                   </div>
                 )}
               </div>

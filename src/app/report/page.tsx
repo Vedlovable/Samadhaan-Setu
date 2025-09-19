@@ -32,6 +32,10 @@ export default function ReportPage() {
   const chunksRef = useRef<Blob[]>([]);
   // Map pick state
   const [picked, setPicked] = useState<{ lat: number; lng: number; address?: string } | null>(null);
+  // Images state
+  const [images, setImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [geoPin, setGeoPin] = useState<[number, number] | undefined>(undefined);
 
   const startRecording = async () => {
     try {
@@ -73,6 +77,42 @@ export default function ReportPage() {
     chunksRef.current = [];
   };
 
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const accepted = Array.from(files).filter((f) => /image\/(jpeg|png)/i.test(f.type));
+    const readers = await Promise.all(
+      accepted.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(String(fr.result));
+            fr.readAsDataURL(file);
+          })
+      )
+    );
+    setImages((prev) => [...prev, ...readers]);
+  };
+
+  const removeImage = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setGeoPin([lat, lng]);
+        setPicked({ lat, lng });
+      },
+      () => {
+        // ignore errors
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     // Placeholder: prepare form data including audio file if present
@@ -91,8 +131,11 @@ export default function ReportPage() {
       const file = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: audioBlob.type || "audio/webm" });
       formData.append("voice_note", file);
     }
+    images.forEach((dataUrl, i) => {
+      formData.append(`image_${i}`, dataUrl);
+    });
 
-    // Persist to localStorage for admin map preview (no backend yet)
+    // Persist to localStorage for admin map/list preview (no backend yet)
     try {
       const raw = localStorage.getItem("reports");
       const reports = raw ? JSON.parse(raw) : [];
@@ -107,6 +150,7 @@ export default function ReportPage() {
         lat: picked?.lat ?? null,
         lng: picked?.lng ?? null,
         address: picked?.address ?? null,
+        images,
         createdAt: new Date().toISOString(),
       });
       localStorage.setItem("reports", JSON.stringify(reports));
@@ -129,19 +173,23 @@ export default function ReportPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Label>Pick location on map</Label>
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>Use My Location</Button>
+                      {picked && (
+                        <span className="text-xs text-muted-foreground">
+                          Selected: {picked.lat.toFixed(6)}, {picked.lng.toFixed(6)}{picked.address ? ` • ${picked.address}` : ""}
+                        </span>
+                      )}
+                    </div>
                     <MapView
                       allowDropPin
                       enableReverseGeocode
                       onPick={(d) => setPicked(d)}
+                      selectedPin={geoPin}
                       heightClassName="h-[400px] md:h-[600px]"
                     />
                   </div>
-                  {picked && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Selected: {picked.lat.toFixed(6)}, {picked.lng.toFixed(6)}{picked.address ? ` • ${picked.address}` : ""}
-                    </p>
-                  )}
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="title">Title</Label>
@@ -191,10 +239,35 @@ export default function ReportPage() {
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Photos</Label>
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-8 text-center">
-                    <img src="https://images.unsplash.com/photo-1501691223387-dd0500403074?q=80&w=600&auto=format&fit=crop" alt="placeholder" className="h-28 w-28 rounded object-cover" />
-                    <p className="text-sm text-muted-foreground">Drag and drop or click to upload</p>
-                    <Button type="button" variant="outline" size="sm">Upload</Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <div
+                    className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center"
+                  >
+                    {images.length === 0 ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">Upload JPG or PNG (multiple)</p>
+                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>Upload Photos</Button>
+                      </>
+                    ) : (
+                      <div className="w-full">
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {images.map((src, idx) => (
+                            <div key={idx} className="relative">
+                              <img src={src} alt={`upload-${idx}`} className="h-20 w-20 rounded object-cover" />
+                              <button type="button" onClick={() => removeImage(idx)} className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white">×</button>
+                            </div>
+                          ))}
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>Add more</Button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* Voice Note */}

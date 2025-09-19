@@ -29,14 +29,18 @@ export default function AdminPage() {
   const [updateOpen, setUpdateOpen] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [progressMsg, setProgressMsg] = useState("");
-  const [markers, setMarkers] = useState<{ id: number; position: [number, number]; title?: string; description?: string; status?: string; address?: string }[]>([]);
+  const [markers, setMarkers] = useState<{ id: number; position: [number, number]; title?: string; description?: string; status?: string; address?: string; images?: string[] }[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [currentType, setCurrentType] = useState<"issue" | "report">("issue");
+  const [currentReportId, setCurrentReportId] = useState<number | null>(null);
 
   useEffect(() => {
     const load = () => {
       try {
         const raw = localStorage.getItem("reports");
-        const reports = raw ? JSON.parse(raw) : [];
-        const m = reports
+        const reportsLocal = raw ? JSON.parse(raw) : [];
+        setReports(reportsLocal);
+        const m = reportsLocal
           .filter((r: any) => typeof r.lat === "number" && typeof r.lng === "number")
           .map((r: any) => ({
             id: r.id,
@@ -45,10 +49,12 @@ export default function AdminPage() {
             description: r.description,
             status: r.status,
             address: r.address,
+            images: Array.isArray(r.images) ? r.images : [],
           }));
         setMarkers(m);
       } catch {
         setMarkers([]);
+        setReports([]);
       }
     };
     load();
@@ -82,7 +88,17 @@ export default function AdminPage() {
   };
 
   const handleOpenUpdate = (id: number) => {
+    setCurrentType("issue");
     setCurrentId(id);
+    setCurrentReportId(null);
+    setProgressMsg("");
+    setUpdateOpen(true);
+  };
+
+  const handleOpenUpdateReport = (id: number) => {
+    setCurrentType("report");
+    setCurrentReportId(id);
+    setCurrentId(null);
     setProgressMsg("");
     setUpdateOpen(true);
   };
@@ -100,14 +116,42 @@ export default function AdminPage() {
   };
 
   const saveProgressUpdate = () => {
-    if (!currentId) return;
-    setItems((prev) => prev.map((it) => (it.id === currentId ? { ...it, status: cycleStatus(it.status) } : it)));
-    const updates = readUpdates();
-    const key = String(currentId);
-    const newEntry = { message: progressMsg || "Status updated", ts: Date.now(), status: (items.find((x) => x.id === currentId)?.status || "open") };
-    updates[key] = [...(updates[key] || []), newEntry];
-    writeUpdates(updates);
-    setUpdateOpen(false);
+    if (currentType === "issue") {
+      if (!currentId) return;
+      setItems((prev) => prev.map((it) => (it.id === currentId ? { ...it, status: cycleStatus(it.status) } : it)));
+      const updates = readUpdates();
+      const key = String(currentId);
+      const newEntry = { message: progressMsg || "Status updated", ts: Date.now(), status: (items.find((x) => x.id === currentId)?.status || "open") };
+      updates[key] = [...(updates[key] || []), newEntry];
+      writeUpdates(updates);
+      setUpdateOpen(false);
+    } else {
+      if (!currentReportId) return;
+      try {
+        const raw = localStorage.getItem("reports");
+        const list = raw ? JSON.parse(raw) : [];
+        const idx = list.findIndex((r: any) => r.id === currentReportId);
+        if (idx !== -1) {
+          const nextStatus = cycleStatus(list[idx].status || "open");
+          list[idx] = { ...list[idx], status: nextStatus };
+          localStorage.setItem("reports", JSON.stringify(list));
+          setReports(list);
+        }
+      } catch {}
+      const updates = readUpdates();
+      const key = `report:${currentReportId}`;
+      const current = (() => {
+        try {
+          const raw = localStorage.getItem("reports");
+          const list = raw ? JSON.parse(raw) : [];
+          return list.find((r: any) => r.id === currentReportId)?.status || "open";
+        } catch { return "open"; }
+      })();
+      const newEntry = { message: progressMsg || "Status updated", ts: Date.now(), status: current };
+      updates[key] = [...(updates[key] || []), newEntry];
+      writeUpdates(updates);
+      setUpdateOpen(false);
+    }
   };
 
   return (
@@ -125,6 +169,56 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent>
           <MapView markers={markers} heightClassName="h-[400px] md:h-[600px]" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Citizen Reports</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reports.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No citizen reports submitted yet.</p>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Photos</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((r) => (
+                    <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                      <TableCell>{r.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {(r.images || []).slice(0, 3).map((src: string, i: number) => (
+                            <img key={i} src={src} alt="thumb" className="h-10 w-10 rounded object-cover" />
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[220px] font-medium">{r.title}</TableCell>
+                      <TableCell className="capitalize">{r.category}</TableCell>
+                      <TableCell className="capitalize">{r.priority}</TableCell>
+                      <TableCell><StatusBadge status={r.status} /></TableCell>
+                      <TableCell>{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenUpdateReport(r.id)}>Update</Button>
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -218,11 +312,24 @@ export default function AdminPage() {
           </DialogHeader>
           <div className="space-y-3">
             <Textarea value={progressMsg} onChange={(e) => setProgressMsg(e.target.value)} placeholder="Describe what changed, what was done, or next steps..." rows={4} />
-            <IssueUpdatesPreview id={currentId} readUpdates={readUpdates} />
+            {currentType === "issue" ? (
+              <IssueUpdatesPreview id={currentId} readUpdates={readUpdates} />
+            ) : (
+              <IssueUpdatesPreview id={currentReportId} readUpdates={() => {
+                const all = readUpdates();
+                const mapped: Record<string, { message: string; ts: number; status: string }[]> = {};
+                // Map prefixed storage key (report:<id>) to plain id string so preview component can find it
+                if (currentReportId) {
+                  const prefKey = `report:${currentReportId}`;
+                  if (all[prefKey]) mapped[String(currentReportId)] = all[prefKey];
+                }
+                return mapped;
+              }} />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUpdateOpen(false)}>Cancel</Button>
-            <Button onClick={saveProgressUpdate} disabled={!currentId}>Save update</Button>
+            <Button onClick={saveProgressUpdate} disabled={currentType === "issue" ? !currentId : !currentReportId}>Save update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
