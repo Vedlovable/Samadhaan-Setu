@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Mic, Square, RotateCcw, Play } from "lucide-react";
 import MapView from "@/components/map/MapView";
+import { createIssueWithMedia } from "@/lib/supabase/issues";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function ReportPage() {
   const [picked, setPicked] = useState<{ lat: number; lng: number; address?: string } | null>(null);
   // Images state
   const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [geoPin, setGeoPin] = useState<[number, number] | undefined>(undefined);
 
@@ -91,10 +93,12 @@ export default function ReportPage() {
       )
     );
     setImages((prev) => [...prev, ...readers]);
+    setImageFiles((prev) => [...prev, ...accepted]);
   };
 
   const removeImage = (idx: number) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const useMyLocation = () => {
@@ -113,8 +117,29 @@ export default function ReportPage() {
     );
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Try Supabase create + uploads first
+    try {
+      await createIssueWithMedia({
+        issue: {
+          title,
+          description,
+          location,
+          status: "Pending",
+          lat: picked?.lat ?? null,
+          lng: picked?.lng ?? null,
+        },
+        imageFiles: imageFiles,
+        audioBlob: audioBlob,
+      });
+      router.push("/dashboard?submitted=1");
+      return;
+    } catch (err) {
+      // Fallback to localStorage for demo continuity
+      console.warn("Supabase createIssueWithMedia failed, falling back to localStorage:", err);
+    }
+
     // Placeholder: prepare form data including audio file if present
     const formData = new FormData();
     formData.append("title", title);

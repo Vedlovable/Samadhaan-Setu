@@ -13,6 +13,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import MapView from "@/components/map/MapView";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { listIssuesWithMedia, updateIssueStatus } from "@/lib/supabase/issues";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -21,6 +23,16 @@ export default function AdminPage() {
     if (!user) router.replace("/login");
     else if (user.role !== "admin") router.replace("/dashboard");
   }, [user, router]);
+  const queryClient = useQueryClient();
+  const { data: sIssues, isLoading: sLoading, error: sError } = useQuery({
+    queryKey: ["supabaseIssues"],
+    queryFn: listIssuesWithMedia,
+  });
+  const cycleSupabase = (s: string) => (s === "Pending" ? "In Progress" : s === "In Progress" ? "Resolved" : "Pending");
+  const updateStatusMut = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) => updateIssueStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["supabaseIssues"] }),
+  });
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
@@ -179,6 +191,73 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent>
           <MapView markers={markers} heightClassName="h-[400px] md:h-[600px]" />
+        </CardContent>
+      </Card>
+
+      {/* Supabase Issues */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Supabase Issues</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sLoading ? (
+            <p className="text-sm text-muted-foreground">Loading issues...</p>
+          ) : sError ? (
+            <p className="text-sm text-destructive">Failed to load issues. Ensure Supabase is configured.</p>
+          ) : !sIssues || sIssues.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No issues found.</p>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Photos</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Audio</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sIssues.map((it: any) => (
+                    <motion.tr key={it.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                      <TableCell>{it.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {(it.images || []).slice(0, 3).map((src: string, i: number) => (
+                            <img key={i} src={src} alt="thumb" className="h-10 w-10 rounded object-cover" />
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[200px] font-medium">{it.title}</TableCell>
+                      <TableCell className="min-w-[240px] text-sm text-muted-foreground line-clamp-2">{it.description}</TableCell>
+                      <TableCell className="min-w-[160px]">{it.location}</TableCell>
+                      <TableCell><StatusBadge status={it.status} /></TableCell>
+                      <TableCell className="min-w-[140px]">
+                        {(it.audios || []).length > 0 ? (
+                          <audio src={it.audios[0]} controls className="w-36" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No audio</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="space-x-2">
+                        <Button
+                          size="sm"
+                          disabled={updateStatusMut.isPending}
+                          onClick={() => updateStatusMut.mutate({ id: it.id, status: cycleSupabase(it.status) })}
+                        >
+                          {updateStatusMut.isPending ? "Updating..." : "Next Status"}
+                        </Button>
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

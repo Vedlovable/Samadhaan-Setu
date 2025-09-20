@@ -1,11 +1,12 @@
 "use client";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 export type Role = "citizen" | "admin";
 export type User = {
   id: string;
-  name: string;
-  email: string;
+  name: string | null;
+  email: string | null;
   role: Role;
 };
 
@@ -13,33 +14,59 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (params: { email: string; password: string; role: Role }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_USERS: Record<string, { password: string; name: string; role: Role }> = {
-  "citizen@demo.dev": { password: "123456", name: "Alex Citizen", role: "citizen" },
-  "admin@demo.dev": { password: "admin123", name: "Riley Admin", role: "admin" },
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const login: AuthContextType["login"] = async ({ email, password, role }) => {
+  // Hydrate from Supabase session
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const sUser = data.user;
+      if (mounted && sUser) {
+        const role = (sUser.user_metadata?.role as Role) || "citizen";
+        setUser({ id: sUser.id, name: sUser.user_metadata?.name ?? sUser.user_metadata?.full_name ?? null, email: sUser.email ?? null, role });
+      }
+      setLoading(false);
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sUser = session?.user;
+      if (sUser) {
+        const role = (sUser.user_metadata?.role as Role) || "citizen";
+        setUser({ id: sUser.id, name: sUser.user_metadata?.name ?? sUser.user_metadata?.full_name ?? null, email: sUser.email ?? null, role });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const login: AuthContextType["login"] = async ({ email, password }) => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const match = DEMO_USERS[email];
-    if (match && match.password === password && match.role === role) {
-      setUser({ id: "1", name: match.name, email, role });
-    } else {
-      throw new Error("Invalid credentials");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
+      throw new Error(error.message || "Invalid credentials");
     }
+    // user state will be set by onAuthStateChange
     setLoading(false);
   };
 
-  const logout = () => setUser(null);
+  const logout = async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
+    setLoading(false);
+  };
 
   const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
 

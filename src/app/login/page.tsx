@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { User2, ShieldCheck, MapPin, Users, CheckCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,6 +29,13 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(err?.message ?? "Login failed");
     }
+  };
+
+  const handleGoogle = async () => {
+    setError("");
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined;
+    const { error: gErr } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
+    if (gErr) setError(gErr.message || "Google sign-in failed");
   };
 
   return (
@@ -83,9 +91,15 @@ export default function LoginPage() {
                   {error && <p className="text-sm text-destructive">{error}</p>}
                   <Button className="h-11 w-full rounded-full" disabled={loading} type="submit">{loading ? "Signing in..." : "Sign In"}</Button>
                 </form>
+                <div className="my-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <Button type="button" variant="outline" className="w-full" onClick={handleGoogle}>Continue with Google</Button>
                 <p className="mt-4 text-center text-sm">
                   Don&apos;t have an account? {" "}
-                  <Link href="#" className="text-primary hover:underline">Sign up</Link>
+                  <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                 </p>
                 <DemoCreds role="admin" />
               </TabsContent>
@@ -102,9 +116,15 @@ export default function LoginPage() {
                   {error && <p className="text-sm text-destructive">{error}</p>}
                   <Button className="h-11 w-full rounded-full" disabled={loading} type="submit">{loading ? "Signing in..." : "Sign In"}</Button>
                 </form>
+                <div className="my-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <Button type="button" variant="outline" className="w-full" onClick={handleGoogle}>Continue with Google</Button>
                 <p className="mt-4 text-center text-sm">
                   Don&apos;t have an account? {" "}
-                  <Link href="#" className="text-primary hover:underline">Sign up</Link>
+                  <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                 </p>
                 <DemoCreds role="admin" />
               </TabsContent>
