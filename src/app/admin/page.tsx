@@ -49,6 +49,9 @@ export default function AdminPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewReport, setViewReport] = useState<any | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  // Supabase issue details
+  const [sDetailsOpen, setSDetailsOpen] = useState(false);
+  const [sViewIssue, setSViewIssue] = useState<any | null>(null);
 
   useEffect(() => {
     const load = () => {
@@ -179,10 +182,10 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total" value={stats.total} color="bg-emerald-50 text-emerald-700" />
-        <StatCard title="Open" value={stats.open} color="bg-amber-50 text-amber-700" />
-        <StatCard title="In Progress" value={stats.inProgress} color="bg-lime-50 text-lime-700" />
-        <StatCard title="Resolved" value={stats.resolved} color="bg-green-50 text-green-700" />
+        <StatCard title="Total" value={stats.total} color="bg-yellow-50 text-yellow-800" />
+        <StatCard title="Open" value={stats.open} color="bg-yellow-100 text-yellow-800" />
+        <StatCard title="In Progress" value={stats.inProgress} color="bg-zinc-50 text-zinc-800" />
+        <StatCard title="Resolved" value={stats.resolved} color="bg-neutral-900 text-yellow-300" />
       </div>
 
       <Card>
@@ -251,6 +254,7 @@ export default function AdminPage() {
                         >
                           {updateStatusMut.isPending ? "Updating..." : "Next Status"}
                         </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setSViewIssue(it); setSDetailsOpen(true); }}>View</Button>
                       </TableCell>
                     </motion.tr>
                   ))}
@@ -473,6 +477,58 @@ export default function AdminPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog for Supabase Issue */}
+      <Dialog open={sDetailsOpen} onOpenChange={setSDetailsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="truncate">{sViewIssue?.title || "Issue Details"}</span>
+              {sViewIssue?.status && <StatusBadge status={sViewIssue.status} />}
+            </DialogTitle>
+          </DialogHeader>
+          {sViewIssue && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                <div>Location: <span className="font-medium text-foreground">{sViewIssue.location || "—"}</span></div>
+                <div>ID: {sViewIssue.id}</div>
+              </div>
+              <div>
+                <p className="text-sm whitespace-pre-wrap">{sViewIssue.description}</p>
+              </div>
+              {Array.isArray(sViewIssue.images) && sViewIssue.images.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Photos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sViewIssue.images.map((src: string, idx: number) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setLightboxSrc(src)}
+                        className="rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`Open image ${idx + 1}`}
+                      >
+                        <img src={src} alt={`issue-${idx}`} className="h-20 w-20 rounded object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {Array.isArray(sViewIssue.audios) && sViewIssue.audios.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Audio</p>
+                  {sViewIssue.audios.map((a: string, i: number) => (
+                    <audio key={i} src={a} controls className="w-full" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSDetailsOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -89,10 +89,10 @@ export default function DashboardPage() {
         </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Reports" value={stats.total} color="bg-blue-50 text-blue-700" />
-        <StatCard title="Open" value={stats.open} color="bg-amber-50 text-amber-700" />
-        <StatCard title="In Progress" value={stats.inProgress} color="bg-sky-50 text-sky-700" />
-        <StatCard title="Resolved" value={stats.resolved} color="bg-emerald-50 text-emerald-700" />
+        <StatCard title="Total Reports" value={stats.total} color="bg-yellow-50 text-yellow-800" />
+        <StatCard title="Open" value={stats.open} color="bg-yellow-100 text-yellow-800" />
+        <StatCard title="In Progress" value={stats.inProgress} color="bg-zinc-50 text-zinc-800" />
+        <StatCard title="Resolved" value={stats.resolved} color="bg-neutral-900 text-yellow-300" />
       </div>
 
       <Card>
@@ -122,6 +122,26 @@ export default function DashboardPage() {
                     <div className="text-sm text-muted-foreground">Priority: <span className="font-medium capitalize">{issue.priority}</span></div>
                   </div>
                   <Separator className="my-3" />
+                  {/* Thumbnails for uploaded images (if any) */}
+                  <div className="mb-3">
+                    {Array.isArray(issue.images) && issue.images.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {issue.images.slice(0, 4).map((src: string, idx: number) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setLightboxSrc(src)}
+                            className="rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                            aria-label={`Open image ${idx + 1}`}
+                          >
+                            <img src={src} alt={`thumb-${idx}`} className="h-12 w-12 rounded object-cover md:h-14 md:w-14" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No photo attached</p>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span className="rounded-md bg-muted px-2 py-1 capitalize">{issue.category}</span>
                     <span className="rounded-md bg-muted px-2 py-1">Reporter: {issue.reportedBy}</span>
@@ -160,54 +180,6 @@ export default function DashboardPage() {
               {filtered.length === 0 && <p className="text-sm text-muted-foreground">No issues found for this filter.</p>}
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Your Submitted Reports (from localStorage) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Submitted Reports</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {myReports.length === 0 && (
-            <p className="text-sm text-muted-foreground">You haven't submitted any reports yet.</p>
-          )}
-          {myReports.map((r) => (
-            <motion.div key={r.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-lg border p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate font-medium">{r.title}</h3>
-                    <StatusBadge status={r.status} />
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.description}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-xs capitalize text-muted-foreground">{r.priority}</span>
-                </div>
-              </div>
-              <div className="mt-3">
-                {Array.isArray(r.images) && r.images.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {r.images.slice(0, 4).map((src: string, idx: number) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setLightboxSrc(src)}
-                        className="rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                        aria-label={`Open image ${idx + 1}`}
-                      >
-                        <img src={src} alt={`thumb-${idx}`} className="h-14 w-14 rounded object-cover md:h-16 md:w-16" />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No photo attached</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
         </CardContent>
       </Card>
 
