@@ -51,10 +51,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login: AuthContextType["login"] = async ({ email, password }) => {
+  const login: AuthContextType["login"] = async ({ email, password, role }) => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      // Graceful demo fallback when Supabase isn't configured
+      if ((error.message || "").toLowerCase().includes("supabase not configured")) {
+        const inferredRole: Role = role || (email?.toLowerCase().includes("admin") ? "admin" : "citizen");
+        setUser({ id: "demo-user", name: null, email, role: inferredRole });
+        setLoading(false);
+        return;
+      }
       setLoading(false);
       throw new Error(error.message || "Invalid credentials");
     }

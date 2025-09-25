@@ -87,7 +87,7 @@ export default function LoginPage() {
                   Don&apos;t have an account? {" "}
                   <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                 </p>
-                <DemoCreds role="admin" />
+                <DemoCreds role="citizen" />
               </TabsContent>
               <TabsContent value="admin" className="mt-4">
                 <form onSubmit={onSubmit} className="space-y-4">
