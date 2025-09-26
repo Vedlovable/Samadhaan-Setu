@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { User2, ShieldCheck, MapPin, Users, CheckCircle, ChevronRight, Camera, Route, Bell, BarChart3, Smartphone, Lock, Shield, Database } from "lucide-react";
+import { MapView } from "@/components/map/MapView";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,6 +19,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>("123456");
   const [error, setError] = useState<string>("");
   const [tab, setTab] = useState("citizen");
+  // Map filters & data
+  const [category, setCategory] = useState<"all" | "pothole" | "streetlight" | "garbage">("all");
+  const baseMarkers = useMemo(
+    () => [
+      { id: 1, position: [26.9152, 75.7873] as [number, number], title: "Pothole near Market Rd", description: "Large pothole causing traffic.", status: "Severe", address: "Market Rd, Jaipur", category: "pothole" },
+      { id: 2, position: [26.9129, 75.7921] as [number, number], title: "Street light outage", description: "Two lights not working.", status: "In Progress", address: "MI Rd, Jaipur", category: "streetlight" },
+      { id: 3, position: [26.9108, 75.7811] as [number, number], title: "Overflowing trash bin", description: "Needs urgent cleanup.", status: "Severe", address: "C-Scheme, Jaipur", category: "garbage" },
+      { id: 4, position: [26.9186, 75.8004] as [number, number], title: "Pothole patched", description: "Fixed by municipality.", status: "Fixed", address: "Raja Park, Jaipur", category: "pothole" },
+      { id: 5, position: [26.9055, 75.785] as [number, number], title: "Street light repaired", description: "Area illuminated again.", status: "Fixed", address: "Tonk Rd, Jaipur", category: "streetlight" },
+    ],
+    []
+  );
+  const markers = useMemo(() => (category === "all" ? baseMarkers : baseMarkers.filter((m: any) => m.category === category)), [baseMarkers, category]);
+  const counts = useMemo(
+    () => ({
+      all: baseMarkers.length,
+      pothole: baseMarkers.filter((m: any) => m.category === "pothole").length,
+      streetlight: baseMarkers.filter((m: any) => m.category === "streetlight").length,
+      garbage: baseMarkers.filter((m: any) => m.category === "garbage").length,
+    }),
+    [baseMarkers]
+  );
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +54,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4">
+    <div className="relative mx-auto w-full max-w-6xl px-4">
+      <div className="pointer-events-none absolute inset-0 -z-10 opacity-80 [background:radial-gradient(800px_400px_at_0%_0%,rgba(0,0,0,0.6),transparent_60%),radial-gradient(600px_300px_at_100%_10%,rgba(255,215,0,0.12),transparent_60%)]" />
       {/* HERO */}
       <div className="mx-auto grid min-h-[70dvh] w-full grid-cols-1 items-center gap-8 py-10 md:grid-cols-2">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="order-1 md:order-none">
@@ -49,16 +73,6 @@ export default function LoginPage() {
               <p className="mt-3 max-w-md text-base text-white/80">
                 Report civic issues like potholes, broken lights, and garbage in real-time — and track resolutions instantly.
               </p>
-
-              {/* Top CTAs as per reference */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Button onClick={() => router.push("/report")} className="h-10 rounded-full bg-[#FFD700] text-black hover:opacity-90">
-                  Report an Issue
-                </Button>
-                <Button onClick={() => router.push("/dashboard")} variant="secondary" className="h-10 rounded-full border-white/20 bg-white/10 text-white hover:bg-white/20">
-                  Explore Map
-                </Button>
-              </div>
 
               {/* Mock illustration card inline (top-right badge style) */}
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 shadow-inner">
@@ -152,10 +166,10 @@ export default function LoginPage() {
       {/* How It Works */}
       <section className="py-14">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">
+          <h2 className="text-3xl font-bold md:text-4xl">
             How It <span className="text-[#FFD700]">Works</span>
           </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-2xl leading-relaxed text-muted-foreground">
             From problem to solution in three simple steps. Our streamlined process ensures your civic concerns get the attention they deserve.
           </p>
         </div>
@@ -186,17 +200,17 @@ export default function LoginPage() {
       {/* Live Issue Map */}
       <section className="py-14">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">
+          <h2 className="text-3xl font-bold md:text-4xl">
             Live Issue <span className="text-[#FFD700]">Map</span>
           </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-2xl leading-relaxed text-muted-foreground">
             See real-time civic issues reported in your area. Track progress, explore patterns, and stay informed about your community.
           </p>
         </div>
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[1fr_320px]">
-          {/* Map placeholder */}
+          {/* Functional Leaflet map */}
           <div className="rounded-2xl border bg-muted/40 p-4">
-            <div className="h-[320px] w-full rounded-lg border border-dashed bg-white" />
+            <MapView markers={markers as any} className="rounded-lg overflow-hidden border" heightClassName="h-[360px] md:h-[420px]" />
             <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
               <Legend color="#22c55e" label="Fixed" />
               <Legend color="#f97316" label="In Progress" />
@@ -210,10 +224,10 @@ export default function LoginPage() {
                 <CardTitle className="text-base">Filter Issues</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <FilterRow label="All Issues" count={5} active={false} />
-                <FilterRow label="Potholes" count={2} active={false} />
-                <FilterRow label="Street Lights" count={1} active={false} />
-                <FilterRow label="Garbage" count={1} active={true} />
+                <FilterRow label="All Issues" count={counts.all} active={category === "all"} onClick={() => setCategory("all")} />
+                <FilterRow label="Potholes" count={counts.pothole} active={category === "pothole"} onClick={() => setCategory("pothole")} />
+                <FilterRow label="Street Lights" count={counts.streetlight} active={category === "streetlight"} onClick={() => setCategory("streetlight")} />
+                <FilterRow label="Garbage" count={counts.garbage} active={category === "garbage"} onClick={() => setCategory("garbage")} />
               </CardContent>
             </Card>
             <Card className="rounded-2xl">
@@ -221,9 +235,12 @@ export default function LoginPage() {
                 <CardTitle className="text-base">Recent Reports</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <div>Overflowing trash bin</div>
-                <div>Broken street light</div>
-                <div>Pothole near 7th Ave</div>
+                {markers.slice(0, 5).map((m: any) => (
+                  <div key={m.id} className="flex items-center justify-between">
+                    <span className="truncate">{m.title}</span>
+                    <span className="ml-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{m.status}</span>
+                  </div>
+                ))}
               </CardContent>
             </Card>
             <Button onClick={() => router.push("/dashboard")} variant="secondary" className="rounded-full">Explore Full Map</Button>
@@ -429,7 +446,7 @@ function Stat({ value, label, dark = false }: { value: string; label: string; da
 
 function StepCard({ icon, title, bullets }: { icon: React.ReactNode; title: string; bullets: string[] }) {
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#FFD700] text-black">
         {icon}
       </div>
@@ -452,18 +469,18 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function FilterRow({ label, count, active }: { label: string; count: number; active?: boolean }) {
+function FilterRow({ label, count, active, onClick }: { label: string; count: number; active?: boolean; onClick?: () => void }) {
   return (
-    <div className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm ${active ? "border-[#FFD700] bg-[#FFF8CC]" : "bg-white"}`}>
+    <button type="button" onClick={onClick} className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition hover:bg-muted ${active ? "border-[#FFD700] bg-[#FFF8CC]" : "bg-white"}`}>
       <span className={active ? "font-medium text-black" : "text-gray-700"}>{label}</span>
       <span className={`ml-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs ${active ? "bg-black text-white" : "bg-muted text-foreground"}`}>{count}</span>
-    </div>
+    </button>
   );
 }
 
 function Feature({ icon, title, bullets }: { icon: React.ReactNode; title: string; bullets: string[] }) {
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#FFD700] text-black">
         {icon}
       </div>
