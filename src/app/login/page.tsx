@@ -74,24 +74,6 @@ export default function LoginPage() {
                 Report civic issues like potholes, broken lights, and garbage in real-time — and track resolutions instantly.
               </p>
 
-              {/* Mock illustration card inline (top-right badge style) */}
-              <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 shadow-inner">
-                <div className="flex items-center justify-between">
-                  <div className="h-6 w-24 rounded bg-white/10" />
-                  <div className="h-6 w-6 rounded-full bg-[#FFD700]" />
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <div className="col-span-2 rounded-md border border-white/10 bg-black/60 p-3 text-sm text-white/70">
-                    <span className="opacity-70">Report Issue</span>
-                    <div className="mt-2 h-20 rounded-md bg-white/5" />
-                  </div>
-                  <div className="flex flex-col items-stretch justify-between">
-                    <div className="h-8 rounded-md bg-white/10" />
-                    <Button className="mt-3 rounded-md bg-[#FFD700] px-3 py-2 text-xs font-medium text-black hover:opacity-90">Submit Report</Button>
-                  </div>
-                </div>
-              </div>
-
               {/* Stats below hero as per reference */}
               <div className="mt-6 grid grid-cols-3 gap-4 text-sm text-white/80">
                 <Stat value="5,247" label="Issues Reported" />
@@ -166,7 +148,8 @@ export default function LoginPage() {
       {/* How It Works */}
       <section className="py-14">
         <div className="text-center">
-          <h2 className="text-3xl font-bold md:text-4xl">
+          <h2 className="text-3xl font-bold md:text-4xl inline-flex items-center gap-2">
+            <CheckCircle className="h-6 w-6 text-[#FFD700]" />
             How It <span className="text-[#FFD700]">Works</span>
           </h2>
           <p className="mx-auto mt-2 max-w-2xl leading-relaxed text-muted-foreground">
@@ -299,7 +282,9 @@ export default function LoginPage() {
       {/* Features Grid */}
       <section className="py-14">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">Powerful <span className="text-[#FFD700]">Features</span></h2>
+          <h2 className="text-3xl font-bold inline-flex items-center justify-center gap-2">Powerful <span className="text-[#FFD700]">Features</span>
+            <BarChart3 className="h-6 w-6 text-[#FFD700]" />
+          </h2>
           <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
             Everything you need to report, track, and resolve civic issues efficiently. Built with cutting-edge technology for maximum impact.
           </p>
