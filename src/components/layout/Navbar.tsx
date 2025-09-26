@@ -35,7 +35,10 @@ export default function Navbar() {
         </nav>
         <div className="flex items-center gap-2">
           {!user ? (
-            <Button size="sm" onClick={() => router.push("/login")}>Login</Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => router.push("/login")}>Login</Button>
+              <Button size="sm" onClick={() => router.push("/register")}>Register</Button>
+            </>
           ) : (
             <>
               <span className="hidden text-sm text-muted-foreground md:inline">{user.name}</span>

@@ -31,14 +31,7 @@ export default function AdminPage() {
   const cycleSupabase = (s: string) => (s === "Pending" ? "In Progress" : s === "In Progress" ? "Resolved" : "Pending");
   const updateStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateIssueStatus(id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supabaseIssues"] });
-      alert("Status updated successfully!");
-    },
-    onError: (error) => {
-      console.error("Error updating status:", error);
-      alert("Failed to update status. Please try again.");
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["supabaseIssues"] }),
   });
 
   const [q, setQ] = useState("");
@@ -92,11 +85,11 @@ export default function AdminPage() {
   }, []);
 
   const stats = useMemo(() => ({
-    total: sIssues?.length || 0,
-    open: sIssues?.filter((i) => i.status === "Pending").length || 0,
-    inProgress: sIssues?.filter((i) => i.status === "In Progress").length || 0,
-    resolved: sIssues?.filter((i) => i.status === "Resolved").length || 0,
-  }), [sIssues]);
+    total: items.length,
+    open: items.filter((i) => i.status === "open").length,
+    inProgress: items.filter((i) => i.status === "in_progress").length,
+    resolved: items.filter((i) => i.status === "resolved").length,
+  }), [items]);
 
   const filtered = useMemo(() => {
     return items.filter((i) => {
@@ -204,18 +197,18 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Submitted Reports */}
+      {/* Supabase Issues */}
       <Card>
         <CardHeader>
-          <CardTitle>Submitted Reports</CardTitle>
+          <CardTitle>Supabase Issues</CardTitle>
         </CardHeader>
         <CardContent>
           {sLoading ? (
-            <p className="text-sm text-muted-foreground">Loading reports...</p>
+            <p className="text-sm text-muted-foreground">Loading issues...</p>
           ) : sError ? (
-            <p className="text-sm text-destructive">Failed to load reports. Ensure Supabase is configured.</p>
+            <p className="text-sm text-destructive">Failed to load issues. Ensure Supabase is configured.</p>
           ) : !sIssues || sIssues.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No reports found.</p>
+            <p className="text-sm text-muted-foreground">No issues found.</p>
           ) : (
             <div className="w-full overflow-x-auto">
               <Table>
@@ -227,7 +220,7 @@ export default function AdminPage() {
                     <TableHead>Description</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Audio</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -246,15 +239,73 @@ export default function AdminPage() {
                       <TableCell className="min-w-[240px] text-sm text-muted-foreground line-clamp-2">{it.description}</TableCell>
                       <TableCell className="min-w-[160px]">{it.location}</TableCell>
                       <TableCell><StatusBadge status={it.status} /></TableCell>
-                      <TableCell>{it.created_at ? new Date(it.created_at).toLocaleDateString() : "Not specified"}</TableCell>
+                      <TableCell className="min-w-[140px]">
+                        {(it.audios || []).length > 0 ? (
+                          <audio src={it.audios[0]} controls className="w-36" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No audio</span>
+                        )}
+                      </TableCell>
                       <TableCell className="space-x-2">
                         <Button
                           size="sm"
-                          onClick={() => { setSViewIssue(it); setSManageOpen(true); setSSelectedStatus(it.status); }}
+                          disabled={updateStatusMut.isPending}
+                          onClick={() => updateStatusMut.mutate({ id: it.id, status: cycleSupabase(it.status) })}
                         >
-                          Manage
+                          {updateStatusMut.isPending ? "Updating..." : "Next Status"}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => { setSViewIssue(it); setSDetailsOpen(true); }}>View</Button>
+                      </TableCell>
+                    </motion.tr>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Citizen Reports</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reports.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No citizen reports submitted yet.</p>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Photos</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((r) => (
+                    <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                      <TableCell>{r.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {(r.images || []).slice(0, 3).map((src: string, i: number) => (
+                            <img key={i} src={src} alt="thumb" className="h-10 w-10 rounded object-cover" />
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[220px] font-medium">{r.title}</TableCell>
+                      <TableCell className="capitalize">{r.category}</TableCell>
+                      <TableCell className="capitalize">{r.priority}</TableCell>
+                      <TableCell><StatusBadge status={r.status} /></TableCell>
+                      <TableCell>{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenUpdateReport(r.id)}>Update</Button>
+                        <Button size="sm" onClick={() => handleViewReport(r.id)}>View</Button>
                       </TableCell>
                     </motion.tr>
                   ))}
@@ -304,7 +355,49 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-
+      <Card>
+        <CardHeader>
+          <CardTitle>Issue Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reporter</TableHead>
+                  <TableHead>Assignee</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((i) => (
+                  <motion.tr key={i.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                    <TableCell>{i.id}</TableCell>
+                    <TableCell className="min-w-[220px] font-medium">{i.title}</TableCell>
+                    <TableCell>{i.location}</TableCell>
+                    <TableCell className="capitalize">{i.category}</TableCell>
+                    <TableCell className="capitalize">{i.priority}</TableCell>
+                    <TableCell><StatusBadge status={i.status} /></TableCell>
+                    <TableCell className="min-w-[160px]">{i.assignee || <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                    <TableCell>{new Date(i.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => handleAssign(i.id)}>Assign</Button>
+                      <Button size="sm" onClick={() => handleOpenUpdate(i.id)}>Update</Button>
+                    </TableCell>
+                  </motion.tr>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={updateOpen} onOpenChange={setUpdateOpen}>
         <DialogContent className="sm:max-w-md">
@@ -446,45 +539,6 @@ export default function AdminPage() {
           {lightboxSrc && (
             <img src={lightboxSrc} alt="preview" className="max-h-[70vh] w-full rounded object-contain" />
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Dialog for Supabase Issue */}
-      <Dialog open={sManageOpen} onOpenChange={setSManageOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between gap-2">
-              <span>Manage Issue</span>
-              {sSelectedStatus && <StatusBadge status={sSelectedStatus} />}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Select status</p>
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
-                value={sSelectedStatus}
-                onChange={(e) => setSSelectedStatus(e.target.value)}
-              >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Resolved">Resolved</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSManageOpen(false)}>Cancel</Button>
-            <Button
-              disabled={!sViewIssue || updateStatusMut.isPending || !sSelectedStatus}
-              onClick={() => {
-                if (!sViewIssue || !sSelectedStatus) return;
-                updateStatusMut.mutate({ id: sViewIssue.id, status: sSelectedStatus });
-                setSManageOpen(false);
-              }}
-            >
-              {updateStatusMut.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

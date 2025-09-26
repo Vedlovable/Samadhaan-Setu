@@ -82,12 +82,6 @@ export default function ReportPage() {
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const accepted = Array.from(files).filter((f) => /image\/(jpeg|png)/i.test(f.type));
-    
-    if (accepted.length === 0) {
-      alert("Please select valid image files (JPG or PNG)");
-      return;
-    }
-    
     const readers = await Promise.all(
       accepted.map(
         (file) =>
@@ -100,9 +94,6 @@ export default function ReportPage() {
     );
     setImages((prev) => [...prev, ...readers]);
     setImageFiles((prev) => [...prev, ...accepted]);
-    
-    // Show confirmation message
-    alert(`${accepted.length} photo(s) attached successfully!`);
   };
 
   const removeImage = (idx: number) => {
@@ -128,10 +119,6 @@ export default function ReportPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (imageFiles.length === 0) {
-      alert("Please attach at least one photo (JPG or PNG) before submitting.");
-      return;
-    }
     // Try Supabase create + uploads first
     try {
       await createIssueWithMedia({
@@ -142,9 +129,6 @@ export default function ReportPage() {
           status: "Pending",
           lat: picked?.lat ?? null,
           lng: picked?.lng ?? null,
-          created_at: new Date().toISOString(),
-          category,
-          priority
         },
         imageFiles: imageFiles,
         audioBlob: audioBlob,
@@ -283,7 +267,6 @@ export default function ReportPage() {
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Photos</Label>
-                  <p className="text-xs text-muted-foreground">At least one photo is required.</p>
                   <input
                     ref={fileInputRef}
                     type="file"

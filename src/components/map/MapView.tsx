@@ -1,18 +1,21 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-
-// Import CSS
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import L, { LatLngExpression } from "leaflet";
+import "leaflet/dist/leaflet.css";
 import "./mapview.css";
 
-// Create a client-side only Map component
-const Map = dynamic(() => import('./MapClient'), {
-  ssr: false,
-  loading: () => <div className="h-[400px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center">Loading map...</div>
-});
+// Fix default marker icons path in Next.js bundling
+import marker2x from "leaflet/dist/images/marker-icon-2x.png";
+import marker1x from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// Define LatLngExpression type
-type LatLngExpression = [number, number];
+// Merge icon paths once
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: (marker2x as unknown as string),
+  iconUrl: (marker1x as unknown as string),
+  shadowUrl: (markerShadow as unknown as string),
+});
 
 const JAIPUR: [number, number] = [26.9124, 75.7873];
 
@@ -37,7 +40,14 @@ interface MapViewProps {
   selectedPin?: [number, number]; // externally-controlled pin
 }
 
-// ClickHandler moved to MapClient.tsx
+function ClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 export const MapView: React.FC<MapViewProps> = ({
   center,
@@ -92,7 +102,7 @@ export const MapView: React.FC<MapViewProps> = ({
   );
 
   const hasMarkers = markers && markers.length > 0;
-  const mapCenter = useMemo(() => {
+  const mapCenter: LatLngExpression = useMemo(() => {
     if (hasMarkers) return markers[0].position;
     if (selectedPin) return selectedPin;
     if (picked) return picked;
@@ -101,16 +111,60 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div className={className}>
-      <Map 
+      <MapContainer
         center={mapCenter}
-        allowDropPin={allowDropPin}
-        onPick={handlePick}
-        markers={markers}
-        enableReverseGeocode={enableReverseGeocode}
-        heightClassName={heightClassName}
-        selectedPin={selectedPin || picked}
-        pickedAddress={pickedAddress}
-      />
+        zoom={13}
+        scrollWheelZoom={true}
+        className={`w-full ${heightClassName}`}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {allowDropPin && <ClickHandler onClick={handlePick} />}
+
+        {(selectedPin || picked) && (
+          <Marker position={(selectedPin || picked)!}>
+            <Popup>
+              <div className="space-y-1">
+                <div className="font-medium">Selected Location</div>
+                <div className="text-xs text-muted-foreground">{(selectedPin || picked)![0].toFixed(6)}, {(selectedPin || picked)![1].toFixed(6)}</div>
+                {pickedAddress && <div className="text-xs">{pickedAddress}</div>}
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {markers.map((m) => (
+          <Marker key={m.id} position={m.position}>
+            <Popup>
+              <div className="space-y-2">
+                {m.title && <div className="font-medium">{m.title}</div>}
+                {m.description && <div className="text-xs">{m.description}</div>}
+                <div className="text-xs text-muted-foreground">
+                  {m.position[0].toFixed(6)}, {m.position[1].toFixed(6)}
+                </div>
+                {m.address && <div className="text-xs">{m.address}</div>}
+                {m.status && (
+                  <div className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                    {m.status}
+                  </div>
+                )}
+                {m.images && m.images.length > 0 && (
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    {m.images.slice(0, 6).map((src, idx) => (
+                      <a key={idx} href={src} target="_blank" rel="noreferrer">
+                        <img src={src} alt="report image" className="h-12 w-full rounded object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   );
 };
