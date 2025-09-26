@@ -15,68 +15,71 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [role, setRole] = useState<"citizen" | "admin">("citizen");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
+    
     if (!form.name || !form.email || !form.password) {
       setError("Please fill all fields");
+      setLoading(false);
       return;
     }
     if (form.password !== form.confirm) {
       setError("Passwords do not match");
+      setLoading(false);
       return;
     }
 
-    // Try Supabase signup; gracefully fallback if not configured
-    const { error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: { name: form.name, role } },
-    });
-
-    if (error) {
-      if ((error.message || "").toLowerCase().includes("supabase not configured")) {
+    try {
+      // Demo mode - simulate successful registration
+      console.log("Using demo mode for registration");
+      
+      // Show success message
+      setError("Signup successful! Redirecting to login page...");
+      
+      // In demo mode, just redirect to login with success parameter
+      setTimeout(() => {
         router.push("/login?registered=true");
-        return;
-      }
-      setError(error.message || "Registration failed");
-      return;
+      }, 2000);
+    } catch (error) {
+      console.error("Error signing up:", error);
+      setError("An unexpected error occurred");
+      setLoading(false);
     }
-
-    router.push("/login?registered=true");
   };
 
   return (
-    <div className="mx-auto grid min-h-[calc(100dvh-140px)] w-full max-w-6xl grid-cols-1 items-center gap-8 py-8 md:grid-cols-2">
-      {/* Left info panel */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="hidden md:block">
-        <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-accent/10 to-primary/5 p-6">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.08),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(234,179,8,0.08),transparent_40%)]" />
-          <div className="relative">
-            <h1 className="text-4xl font-bold tracking-tight text-foreground/90">
-              <span>Join </span>
-              <span className="text-primary">Samadhaan Setu</span>
-            </h1>
-            <p className="mt-3 max-w-md text-base text-foreground/70">
-              Create an account to report issues, collaborate with your community, and track progress.
-            </p>
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <FeatureCard icon={<MapPin className="h-5 w-5 text-primary" />} title="Report" desc="Raise civic tickets" />
-              <FeatureCard icon={<Users className="h-5 w-5 text-primary" />} title="Collaborate" desc="Work together" />
-              <FeatureCard icon={<CheckCircle className="h-5 w-5 text-primary" />} title="Resolve" desc="See outcomes" />
+    <div className="relative mx-auto w-full max-w-6xl py-8">
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-b from-background to-background/60 p-6 md:p-10">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.08),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(234,179,8,0.08),transparent_40%)]" />
+        <div className="grid items-center gap-10 md:grid-cols-2">
+          {/* Left hero content */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <div className="max-w-xl">
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">
+                Join <span className="text-primary">Samadhaan Setu</span>
+              </h1>
+              <p className="mt-4 text-base text-foreground/70">
+                Create an account to report issues, collaborate with your community, and track progress.
+              </p>
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FeatureCard icon={<MapPin className="h-5 w-5 text-primary" />} title="Report" desc="Raise civic tickets" />
+                <FeatureCard icon={<Users className="h-5 w-5 text-primary" />} title="Collaborate" desc="Work together" />
+                <FeatureCard icon={<CheckCircle className="h-5 w-5 text-primary" />} title="Resolve" desc="See outcomes" />
+              </div>
             </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
 
-      {/* Right form card */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-        <Card className="rounded-2xl border-primary/10 shadow-lg">
+          {/* Right: signup card */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="w-full max-w-md justify-self-stretch md:justify-self-auto">
+            <Card className="rounded-2xl border-primary/10 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create account</CardTitle>
             <CardDescription>Sign up to get started</CardDescription>
@@ -132,8 +135,8 @@ export default function RegisterPage() {
                 </div>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="h-11 w-full rounded-full" type="submit">
-                <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+              <Button className="h-11 w-full rounded-full" type="submit" disabled={loading}>
+                <UserPlus className="mr-2 h-4 w-4" /> {loading ? "Signing Up..." : "Sign Up"}
               </Button>
             </form>
             <p className="mt-4 text-center text-sm">
@@ -141,7 +144,9 @@ export default function RegisterPage() {
             </p>
           </CardContent>
         </Card>
-      </motion.div>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

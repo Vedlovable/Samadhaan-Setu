@@ -14,8 +14,8 @@ import { User2, ShieldCheck, MapPin, Users, CheckCircle } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   const { login, loading } = useAuth();
-  const [email, setEmail] = useState<string>("citizen@demo.dev");
-  const [password, setPassword] = useState<string>("123456");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [tab, setTab] = useState("citizen");
 
@@ -31,31 +31,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto grid min-h-[calc(100dvh-140px)] w-full max-w-6xl grid-cols-1 items-center gap-8 py-8 md:grid-cols-2">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="hidden md:block">
-        {/* Left promo panel styled like screenshot */}
-        <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-accent/10 to-primary/5 p-6">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.08),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(234,179,8,0.08),transparent_40%)]" />
-          <div className="relative">
-            <h1 className="text-4xl font-bold tracking-tight text-foreground/90">
-              <span>Samadhaan </span>
-              <span className="text-primary">Setu</span>
-            </h1>
-            <p className="mt-3 max-w-md text-base text-foreground/70">
-              Empowering communities to report and resolve civic issues together. Make your city better, one report at a time.
-            </p>
-
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <FeatureCard icon={<MapPin className="h-5 w-5 text-primary" />} title="Report Issues" desc="Quick & easy" />
-              <FeatureCard icon={<Users className="h-5 w-5 text-primary" />} title="Community" desc="Work together" />
-              <FeatureCard icon={<CheckCircle className="h-5 w-5 text-primary" />} title="Get Results" desc="Track progress" />
+    <div className="relative mx-auto w-full max-w-6xl py-8">
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-b from-background to-background/60 p-6 md:p-10">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.08),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(234,179,8,0.08),transparent_40%)]" />
+        <div className="grid items-center gap-10 md:grid-cols-2">
+          {/* Left hero content */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <div className="max-w-xl">
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">
+                Empowering Citizens. <span className="text-primary">Fixing Cities.</span>
+              </h1>
+              <p className="mt-4 text-base text-foreground/70">
+                Sign in to report issues, collaborate with your community, and track progress in real-time.
+              </p>
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FeatureCard icon={<MapPin className="h-5 w-5 text-primary" />} title="Report" desc="Raise tickets" />
+                <FeatureCard icon={<Users className="h-5 w-5 text-primary" />} title="Collaborate" desc="Work together" />
+                <FeatureCard icon={<CheckCircle className="h-5 w-5 text-primary" />} title="Resolve" desc="See outcomes" />
+              </div>
             </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-        <Card className="rounded-2xl border-primary/10 shadow-lg">
+          {/* Right auth card in place of top hero buttons */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="w-full">
+            <Card className="rounded-2xl border-primary/10 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>Sign in to your account</CardDescription>
@@ -87,7 +86,6 @@ export default function LoginPage() {
                   Don&apos;t have an account? {" "}
                   <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                 </p>
-                <DemoCreds role="citizen" />
               </TabsContent>
               <TabsContent value="admin" className="mt-4">
                 <form onSubmit={onSubmit} className="space-y-4">
@@ -106,12 +104,13 @@ export default function LoginPage() {
                   Don&apos;t have an account? {" "}
                   <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                 </p>
-                <DemoCreds role="admin" />
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -127,19 +126,6 @@ function FeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: stri
           <p className="font-medium leading-none">{title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function DemoCreds({ role }: { role: "citizen" | "admin" }) {
-  const creds = role === "citizen" ? { email: "citizen@demo.dev", pass: "123456" } : { email: "admin@demo.dev", pass: "admin123" };
-  return (
-    <div className="mt-6 rounded-lg border border-accent/50 bg-accent/20 p-4 text-sm">
-      <p className="font-medium">Demo credentials ({role})</p>
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div><span className="text-muted-foreground">Email:</span> {creds.email}</div>
-        <div><span className="text-muted-foreground">Password:</span> {creds.pass}</div>
       </div>
     </div>
   );

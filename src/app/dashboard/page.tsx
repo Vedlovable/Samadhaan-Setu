@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
-import issuesData from "@/data/issues.json";
+import { supabase } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,32 @@ export default function DashboardPage() {
     if (!user) router.replace("/login");
   }, [user, router]);
   const [tab, setTab] = useState<string>("all");
-  const issues = issuesData;
+  const [issues, setIssues] = useState([]);
+  
+  // Fetch issues from Supabase instead of using demo data
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('issues')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching issues:', error);
+          return;
+        }
+        
+        if (data) {
+          setIssues(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch issues:', error);
+      }
+    };
+    
+    fetchIssues();
+  }, []);
 
   // new: local progress updates map from localStorage
   const [updatesMap, setUpdatesMap] = useState<Record<string, { message: string; ts: number; status: string }[]>>({});
@@ -81,13 +106,28 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-2xl font-semibold">Hello{user ? `, ${user.name.split(" ")[0]}` : ""} 👋</h1>
+          <h1 className="text-2xl font-semibold">Hello{user && user.name ? `, ${user.name.split(" ")[0]}` : ""} 👋</h1>
           <p className="text-sm text-muted-foreground">Track your reports and see updates from the city.</p>
         </div>
         <Button asChild>
           <Link href="/report">Report a Civic Issue</Link>
         </Button>
       </div>
+
+      {/* Reporting guidelines for users */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reporting Guidelines</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm">
+          <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+            <li>Provide clear location details and a short, accurate title.</li>
+            <li><span className="font-medium text-foreground">Photo is compulsory</span> — attach at least one clear photo of the issue.</li>
+            <li>Avoid personal or sensitive information in your photos or description.</li>
+            <li>For emergencies, contact local authorities immediately.</li>
+          </ul>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Reports" value={stats.total} color="bg-yellow-50 text-yellow-800" />
         <StatCard title="Open" value={stats.open} color="bg-yellow-100 text-yellow-800" />
